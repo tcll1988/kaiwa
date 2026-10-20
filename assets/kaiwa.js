@@ -32,7 +32,64 @@
   function soundPath(name) { return "sound/" + name + ".mp3"; }
 
   function mark(node, on) { if (node) node.classList.toggle("playing", !!on); }
-  function clearMark() { mark(current, false); current = null; }
+  function clearMark() { stopTrack(); mark(current, false); current = null; }
+
+  /* ---------- 読んでいる字に色をつける ---------- */
+  // 文の各音節の読みはじめ（秒）は data-t に入っている（変換ツールが録音から求めたもの）。
+  // ない場合は、音声の長さを音節の数で等分した目安を使う。
+  var track = null;
+
+  function startTrack(node) {
+    stopTrack();
+    if (!node) return;
+    var units = $$(".sy", node);
+    if (!units.length) return;
+    var t = (node.getAttribute("data-t") || "").split(" ").map(parseFloat)
+      .filter(function (x) { return isFinite(x); });
+    track = {
+      units: units,
+      times: t.length === units.length ? t : null,
+      end: parseFloat(node.getAttribute("data-end")) || 0,
+      last: -2,
+      raf: 0
+    };
+    track.raf = requestAnimationFrame(tick);
+  }
+
+  function estimate() {
+    var d = audio.duration;
+    if (!isFinite(d) || !d) return null;
+    var n = track.units.length, lead = Math.min(0.25, d * 0.08), span = d - lead * 2;
+    var out = [];
+    for (var i = 0; i < n; i++) out.push(lead + span * i / n);
+    track.end = d - lead;
+    return out;
+  }
+
+  function tick() {
+    if (!track) return;
+    var times = track.times || (track.times = estimate());
+    if (times) {
+      var ct = audio.currentTime, idx = -1;
+      for (var i = 0; i < times.length && times[i] <= ct; i++) idx = i;
+      if (track.end && ct >= track.end) idx = times.length;      // 読み終わり
+      if (idx !== track.last) {
+        track.last = idx;
+        track.units.forEach(function (u, k) {
+          u.classList.toggle("done", k < idx);
+          u.classList.toggle("now", k === idx);
+        });
+      }
+    }
+    track.raf = requestAnimationFrame(tick);
+  }
+
+  function stopTrack() {
+    if (!track) return;
+    cancelAnimationFrame(track.raf);
+    track.units.forEach(function (u) { u.classList.remove("done", "now"); });
+    track = null;
+  }
 
   function toast(msg) {
     var t = document.createElement("div");
@@ -70,6 +127,7 @@
     audio.playbackRate = oneRate || rate;
     var p = audio.play();
     if (p && p.catch) p.catch(function () { /* 自動再生がブロックされた場合 */ });
+    if (current && current.classList.contains("line")) startTrack(current);
   }
 
   function step() {

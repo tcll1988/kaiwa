@@ -18,6 +18,10 @@ import sys
 import unicodedata
 from collections import defaultdict
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from pinyin_align import align          # noqa: E402  ピンインを漢字 1 文字ずつに対応させる
+import syllable_timing                  # noqa: E402  録音から各音節の読みはじめの時刻を出す
+
 # ---------------------------------------------------------------- 共通ユーティリティ
 
 LESSON_NUM = {
@@ -252,6 +256,60 @@ def extract_triples(src):
 
 SPEAKER_RE = re.compile(r"^([A-Z])\s*[:：]\s*")
 
+# 変換のあとに表示する集計（ピンインの対応がとれなかった行は、先生に確認してもらう）
+REPORT = {"aligned": 0, "timed": 0, "unaligned": [], "grammar_aligned": 0}
+
+
+HALF2FULL = str.maketrans({",": "，", "!": "！", "?": "？", ":": "：", ";": "；"})
+OPEN_PUNCT = "“‘「『（(《"
+
+
+def ruby_html(pairs):
+    """
+    漢字の上にピンインをのせた並びを作る。
+
+      <span class="w">                                   … ピンインの 1 語（老师 = Lǎoshī）
+        <span class="sy"><span class="py">Lǎo</span><span class="hz">老</span></span>
+        <span class="sy"><span class="py">shī</span><span class="hz">师</span></span>
+        <span class="pu"><span class="py"> </span><span class="hz">，</span></span>
+      </span>
+
+    sy … 音節 1 つ（再生中はここに色がつく）
+    語の途中では改行せず、句読点は直前の語にくっつけて行のはじめに来ないようにする。
+    """
+    words, cur = [], []
+    for chars, spell, word_end in pairs:
+        if spell:
+            cur.append(f'<span class="sy"><span class="py">{esc(spell)}</span>'
+                       f'<span class="hz">{esc(chars)}</span></span>')
+            if word_end:
+                words.append(cur)
+                cur = []
+        else:
+            mark = chars.translate(HALF2FULL)      # 中国語の文中の半角「,」などは全角に
+            cell = f'<span class="pu"><span class="py"> </span><span class="hz">{esc(mark)}</span></span>'
+            if chars in OPEN_PUNCT or not words:
+                cur.append(cell)                   # 開きかっこは次の語へ
+            elif cur:
+                cur.append(cell)
+            else:
+                words[-1].append(cell)
+    if cur:
+        words.append(cur)
+    return "".join(f'<span class="w">{"".join(w)}</span>' for w in words)
+
+
+def syllable_count(pairs):
+    """音節の数と、文の途中の句読点の前にある音節の数（録音の「間」と合わせるため）"""
+    n, breaks = 0, []
+    for chars, spell, _ in pairs:
+        if spell:
+            n += 1
+        elif chars in "，。！？、；：,.!?;:" and 0 < n:
+            breaks.append(n)
+    breaks = sorted({b for b in breaks if b < n})
+    return n, breaks
+
 
 # ---------------------------------------------------------------- 各ページの変換
 
@@ -264,16 +322,35 @@ def convert_honbun(src, out_path, ctx, depth):
     items = []
     for key, tri in rows:
         ch = tri.get("ch", "")
+        py = tri.get("py", "")
         spk = ""
         m = SPEAKER_RE.match(ch)
         if m:
             spk, ch = m.group(1), SPEAKER_RE.sub("", ch)
+
+        # ピンインを 1 文字ずつ漢字の上にのせる。対応がとれない行は、今までどおり下に 1 行で出す
+        pairs = align(ch, py) if py else None
+        timing = ""
+        if pairs:
+            REPORT["aligned"] += 1
+            n, breaks = syllable_count(pairs)
+            mp3 = os.path.join(ctx.get("sound", ""), key + ".mp3")
+            t = syllable_timing.times(mp3, n, breaks) if os.path.exists(mp3) else None
+            if t:
+                REPORT["timed"] += 1
+                timing = f' data-t="{" ".join(f"{x:g}" for x in t[0])}" data-end="{t[1]:g}"'
+            zh_line = f'    <p class="l-ch ruby" lang="zh-Hans">{ruby_html(pairs)}</p>\n'
+            py_line = ""
+        else:
+            REPORT["unaligned"].append((key, ch, py))
+            zh_line = f'    <p class="l-ch" lang="zh-Hans">{esc(ch)}</p>\n'
+            py_line = f'    <p class="l-py" data-lang="py">{esc(py)}</p>\n'
+
         items.append(
-            f'  <li class="line" data-audio="{key}" tabindex="0" role="button" '
+            f'  <li class="line" data-audio="{key}"{timing} tabindex="0" role="button" '
             f'aria-label="この文を再生">\n'
             f'    <span class="spk">{esc(spk) or "♪"}</span>\n'
-            f'    <p class="l-ch" lang="zh-Hans">{esc(ch)}</p>\n'
-            f'    <p class="l-py" data-lang="py">{esc(tri.get("py", ""))}</p>\n'
+            + zh_line + py_line +
             f'    <p class="l-jp" data-lang="jp" lang="ja">{esc(tri.get("jp", ""))}</p>\n'
             "  </li>"
         )
@@ -285,8 +362,8 @@ def convert_honbun(src, out_path, ctx, depth):
     body = (
         '<main class="wrap">\n'
         + toolbar()
-        + hint("honbun", "文をタップすると音が出ます。もう一度タップで聞き直し。"
-               "<b>ピンイン</b>・<b>日本語訳</b>は上のボタンで出したり消したりできます。")
+        + hint("honbun", "文をタップすると音が出ます。<b>読んでいる字に色</b>がつくので、"
+               "目で追いながら聞きましょう。<b>ピンイン</b>・<b>日本語訳</b>は上のボタンで出したり消したりできます。")
         + '<ol class="lines">\n' + "\n".join(items) + "\n</ol>\n"
         + nav + "</main>\n"
     )
@@ -377,6 +454,18 @@ def convert_point_detail(src, out_path, ctx, depth):
 
     frag = clean_html(frag, semantic=True)
     frag = fix_images(frag, depth)
+
+    # 例文とそのピンインが並んでいたら、ピンインを漢字の上にのせる
+    def ruby_example(m):
+        zh, py = tidy(strip_tags(m.group(1))), tidy(strip_tags(m.group(2)))
+        pairs = align(zh, py)
+        if not pairs:
+            return m.group(0)
+        REPORT["grammar_aligned"] += 1
+        return f'<span class="ex-ch ruby" lang="zh-Hans">{ruby_html(pairs)}</span>'
+
+    frag = re.sub(r'<span class="ex-ch" lang="zh-Hans">([^<]*)</span>\s*<span class="ex-py">([^<]*)</span>',
+                  ruby_example, frag)
     # 元のページには閉じられていない <div> が残っていたので、ここで全部外す
     # （中身は表と段落なので div は不要）
     frag = re.sub(r"</?div[^>]*>", "", frag)
@@ -663,6 +752,8 @@ def build_index(out_dir, lessons, max_lesson=14):
 def build_guide(out_dir):
     rows = [
         ("🔊 音を聞く", "文や単語をタップすると、その部分の音声が流れます。もう一度タップで聞き直せます。"),
+        ("🖍 読んでいる所", "本文では、いま読んでいる字に黄色のマーカー、読み終わった字は青になります。"
+                        "ピンインは 1 字ずつ漢字の真上に出るので、どの字をどう読むかがすぐ分かります。"),
         ("👀 ピンイン・日本語訳", "上の「ピンイン」「日本語訳」ボタンで、出したり消したりできます。"
                               "消しておけば、読み方や意味を思い出す練習になります。設定は次のページでも続きます。"),
         ("▶ 全文朗読", "本文や単語を上から順に続けて読み上げます。もう一度押すと止まります。"),
@@ -771,7 +862,7 @@ def main(src_dir, out_dir):
         # ---- 本文
         for i, f in enumerate(hon):
             last = i + 1 == len(hon)
-            ctx = dict(ctx0, part=i + 1,
+            ctx = dict(ctx0, part=i + 1, sound=os.path.join(kaiwa, "sound"),
                        prev=hon[i - 1] if i else None,
                        next=(tan[0] if tan else None) if last else hon[i + 1],
                        next_label="次は 単語 →" if last and tan else None)
@@ -836,6 +927,17 @@ def main(src_dir, out_dir):
     print("変換しました:")
     for line in report:
         print("  " + line)
+
+    total = REPORT["aligned"] + len(REPORT["unaligned"])
+    print(f"\n本文のピンイン: {total} 行中 {REPORT['aligned']} 行を漢字 1 文字ずつに対応させました。")
+    if syllable_timing.available():
+        print(f"  うち {REPORT['timed']} 行は、録音から読みはじめの時刻を求めました。")
+    else:
+        print("  （ffmpeg か numpy がないため、読んでいる位置は音声の長さから目安で表示します）")
+    if REPORT["grammar_aligned"]:
+        print(f"文法ポイントの例文: {REPORT['grammar_aligned']} 文にピンインを対応させました。")
+    for key, ch, py in REPORT["unaligned"]:
+        print(f"  ！対応がとれなかった行（下にピンインを 1 行で表示）: {key}  {ch}  /  {py}")
 
 
 if __name__ == "__main__":
