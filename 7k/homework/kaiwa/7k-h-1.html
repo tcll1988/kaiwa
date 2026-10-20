@@ -15,17 +15,15 @@
 </header>
 <main class="wrap">
 <div class="toolbar">
-  <div class="seg" role="group" aria-label="表示選択">
-    <button type="button" data-mode="ch" aria-pressed="true">中国語</button>
-    <button type="button" data-mode="jp" aria-pressed="false">＋日本語</button>
-    <button type="button" data-mode="py" aria-pressed="false">＋ピンイン</button>
-    <button type="button" data-mode="all" aria-pressed="false">全部</button>
+  <div class="chips" role="group" aria-label="表示">
+    <button type="button" data-toggle="py" aria-pressed="false">ピンイン</button>
+    <button type="button" data-toggle="jp" aria-pressed="false">日本語訳</button>
   </div>
   <div class="spacer"></div>
   <button type="button" id="playAll" class="btn primary">▶ 全文朗読</button>
   <button type="button" id="rateBtn" class="btn" title="再生の速さ">1×</button>
 </div>
-<div class="hint">💡 <span>文をタップすると音が出ます。上のボタンで日本語・ピンインの表示や、読む速さを変えられます。</span></div>
+<div class="hint" data-hint="honbun">💡 <span>文をタップすると音が出ます。もう一度タップで聞き直し。<b>ピンイン</b>・<b>日本語訳</b>は上のボタンで出したり消したりできます。</span><button type="button" class="x" aria-label="この説明を閉じる">×</button></div>
 <ol class="lines">
   <li class="line" data-audio="7k-h-1" tabindex="0" role="button" aria-label="この文を再生">
     <span class="spk">A</span>

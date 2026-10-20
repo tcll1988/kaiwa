@@ -15,17 +15,15 @@
 </header>
 <main class="wrap">
 <div class="toolbar">
-  <div class="seg" role="group" aria-label="表示選択">
-    <button type="button" data-mode="ch" aria-pressed="true">中国語</button>
-    <button type="button" data-mode="jp" aria-pressed="false">＋日本語</button>
-    <button type="button" data-mode="py" aria-pressed="false">＋ピンイン</button>
-    <button type="button" data-mode="all" aria-pressed="false">全部</button>
+  <div class="chips" role="group" aria-label="表示">
+    <button type="button" data-toggle="py" aria-pressed="false">ピンイン</button>
+    <button type="button" data-toggle="jp" aria-pressed="false">日本語訳</button>
   </div>
   <div class="spacer"></div>
   <button type="button" id="playAll" class="btn primary">▶ 全文朗読</button>
   <button type="button" id="rateBtn" class="btn" title="再生の速さ">1×</button>
 </div>
-<div class="hint">💡 <span>単語をタップすると音が出ます。ピンインや意味をかくして、確認テストにも使えます。</span></div>
+<div class="hint" data-hint="tango">💡 <span>単語をタップすると音が出ます。<b>ピンイン</b>や<b>日本語訳</b>を消して、読み方・意味を思い出す練習にも使えます。</span><button type="button" class="x" aria-label="この説明を閉じる">×</button></div>
 <ul class="words">
   <li class="word" data-audio="3k-t-10" tabindex="0" role="button" aria-label="この単語を再生">
     <span class="w-ch" lang="zh-Hans">铅笔</span>
@@ -68,11 +66,10 @@
     <span class="w-jp" data-lang="jp" lang="ja">それら，あれら</span>
   </li>
 </ul>
-<p class="center"><a class="btn" href="3k-t2-1.html">補充単語 →</a></p>
 <nav class="pager">
+  <a class="btn primary onward" rel="next" href="3k-t2-1.html"><span>補充単語 →</span></a>
   <a class="btn" rel="prev" href="3k-t1-1.html"><span>← 前へ</span></a>
   <a class="btn" href="../../3k.html"><span>課のメニュー</span></a>
-  <span class="btn ghost"><span>→</span></span>
 </nav>
 </main>
 

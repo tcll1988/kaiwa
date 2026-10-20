@@ -99,13 +99,12 @@ def toolbar(play_all=True):
             '  <button type="button" id="playAll" class="btn primary">▶ 全文朗読</button>\n'
             '  <button type="button" id="rateBtn" class="btn" title="再生の速さ">1×</button>\n'
         )
+    # ピンイン・日本語訳を、それぞれ ON / OFF する（中国語はいつも表示）
     return (
         '<div class="toolbar">\n'
-        '  <div class="seg" role="group" aria-label="表示選択">\n'
-        '    <button type="button" data-mode="ch" aria-pressed="true">中国語</button>\n'
-        '    <button type="button" data-mode="jp" aria-pressed="false">＋日本語</button>\n'
-        '    <button type="button" data-mode="py" aria-pressed="false">＋ピンイン</button>\n'
-        '    <button type="button" data-mode="all" aria-pressed="false">全部</button>\n'
+        '  <div class="chips" role="group" aria-label="表示">\n'
+        '    <button type="button" data-toggle="py" aria-pressed="false">ピンイン</button>\n'
+        '    <button type="button" data-toggle="jp" aria-pressed="false">日本語訳</button>\n'
         '  </div>\n'
         '  <div class="spacer"></div>\n'
         + btn +
@@ -113,17 +112,27 @@ def toolbar(play_all=True):
     )
 
 
-def pager(prev=None, next_=None, back=None, back_label="一覧"):
+def hint(key, text):
+    """一度閉じたら次から出ない説明（data-hint ごとに記憶）"""
+    return (f'<div class="hint" data-hint="{key}">💡 <span>{text}</span>'
+            '<button type="button" class="x" aria-label="この説明を閉じる">×</button></div>\n')
+
+
+def pager(prev=None, next_=None, back=None, back_label="一覧", next_label=None):
+    """next_label を渡すと「次は 単語 →」のように、次の学習へ案内する大きなボタンになる"""
     parts = ['<nav class="pager">']
+    if next_ and next_label:
+        parts.append(f'  <a class="btn primary onward" rel="next" href="{next_}">'
+                     f'<span>{esc(next_label)}</span></a>')
     if prev:
         parts.append(f'  <a class="btn" rel="prev" href="{prev}"><span>← 前へ</span></a>')
     else:
         parts.append('  <span class="btn ghost"><span>←</span></span>')
     if back:
         parts.append(f'  <a class="btn" href="{back}"><span>{esc(back_label)}</span></a>')
-    if next_:
+    if next_ and not next_label:
         parts.append(f'  <a class="btn primary" rel="next" href="{next_}"><span>次へ →</span></a>')
-    else:
+    elif not next_:
         parts.append('  <span class="btn ghost"><span>→</span></span>')
     parts.append("</nav>")
     return "\n".join(parts) + "\n"
@@ -270,14 +279,15 @@ def convert_honbun(src, out_path, ctx, depth):
         )
 
     nav = pager(prev=ctx.get("prev"), next_=ctx.get("next"),
-                back=f"{rel(depth - 1)}{lesson}.html", back_label="課のメニュー")
+                back=f"{rel(depth - 1)}{lesson}.html", back_label="課のメニュー",
+                next_label=ctx.get("next_label"))
 
     body = (
         '<main class="wrap">\n'
         + toolbar()
-        + '<div class="hint">💡 <span>文をタップすると音が出ます。上のボタンで日本語・ピンインの表示や、'
-          '読む速さを変えられます。</span></div>\n'
-        '<ol class="lines">\n' + "\n".join(items) + "\n</ol>\n"
+        + hint("honbun", "文をタップすると音が出ます。もう一度タップで聞き直し。"
+               "<b>ピンイン</b>・<b>日本語訳</b>は上のボタンで出したり消したりできます。")
+        + '<ol class="lines">\n' + "\n".join(items) + "\n</ol>\n"
         + nav + "</main>\n"
     )
     write(out_path, shell(f"{title}｜本文{part}", body, depth,
@@ -303,20 +313,16 @@ def convert_tango(src, out_path, ctx, depth):
         )
 
     nav = pager(prev=ctx.get("prev"), next_=ctx.get("next"),
-                back=f"{rel(depth - 1)}{lesson}.html", back_label="課のメニュー")
-
-    extra = ""
-    if ctx.get("sibling"):
-        extra = (f'<p class="center"><a class="btn" href="{ctx["sibling"][0]}">'
-                 f'{esc(ctx["sibling"][1])} →</a></p>\n')
+                back=f"{rel(depth - 1)}{lesson}.html", back_label="課のメニュー",
+                next_label=ctx.get("next_label"))
 
     body = (
         '<main class="wrap">\n'
         + toolbar()
-        + '<div class="hint">💡 <span>単語をタップすると音が出ます。'
-          'ピンインや意味をかくして、確認テストにも使えます。</span></div>\n'
-        '<ul class="words">\n' + "\n".join(items) + "\n</ul>\n"
-        + extra + nav + "</main>\n"
+        + hint("tango", "単語をタップすると音が出ます。<b>ピンイン</b>や<b>日本語訳</b>を消して、"
+               "読み方・意味を思い出す練習にも使えます。")
+        + '<ul class="words">\n' + "\n".join(items) + "\n</ul>\n"
+        + nav + "</main>\n"
     )
     write(out_path, shell(f"{title}｜{label}", body, depth,
                           crumb=label, back=f"{rel(depth - 1)}{lesson}.html",
@@ -337,7 +343,8 @@ def convert_point_index(src, out_path, ctx, depth):
         '<h2 class="page-title">文法ポイント</h2>\n'
         f'<p class="page-sub">{esc(title)}</p>\n'
         '<ul class="menu">\n' + "\n".join(items) + "\n</ul>\n"
-        + pager(back=f"{rel(depth - 1)}{lesson}.html", back_label="課のメニューへ戻る")
+        + pager(back=f"{rel(depth - 1)}{lesson}.html", back_label="課のメニューへ戻る",
+                next_=links[0][0] if links else None, next_label="1 から読む →")
         + "</main>\n"
     )
     write(out_path, shell(f"{title}｜文法ポイント", body, depth, mode=False,
@@ -388,7 +395,9 @@ def convert_point_detail(src, out_path, ctx, depth):
         '<main class="wrap narrow">\n'
         + (f'<h2 class="page-title" lang="zh-Hans">{esc(head)}</h2>\n' if head else "")
         + '<div class="card note">\n' + frag + "\n</div>\n"
-        + pager(prev=prev, next_=next_, back=f"{ctx['lesson']}-p.html", back_label="ポイント一覧")
+        + pager(prev=prev, next_=next_ or f"{ctx['lesson']}-l.html",
+                back=f"{ctx['lesson']}-p.html", back_label="ポイント一覧",
+                next_label=None if next_ else "次は 練習問題 →")
         + "</main>\n"
     )
     write(out_path, shell(f"{title}｜{head or '文法ポイント'}", body, depth, mode=False,
@@ -434,15 +443,20 @@ def convert_homework_index(src, out_path, ctx, depth):
             continue
         seen.add(href)
         total = ctx["counts"].get(re.search(r"-l(\d+)-", href).group(1), "")
+        sec = re.sub(r"-\d+\.html$", "", href)
         items.append(
-            f'  <li><a href="{href}"><span class="n">{i}</span><span>{esc(text)}</span>'
-            f'<span class="arrow">{total}問 ›</span></a></li>')
+            f'  <li><a href="{href}"><span class="n">{i}</span><span>{esc(text)}'
+            f'<small class="muted">　全{total}問</small></span>'
+            f'<span class="score" data-score-sec="{sec}" data-total="{total}"></span>'
+            f'<span class="arrow">›</span></a></li>')
     body = (
         '<main class="wrap narrow">\n'
         f'<p class="hero"><img src="{rel(depth)}assets/images/14.png" alt="加油！" loading="lazy"></p>\n'
         '<h2 class="page-title">練習問題</h2>\n'
         f'<p class="page-sub">{esc(title)}</p>\n'
         '<ul class="menu">\n' + "\n".join(items) + "\n</ul>\n"
+        '<p class="muted center">○×の記録は、この端末のブラウザだけに残ります。'
+        f'<button type="button" class="reset" data-reset="{lesson}-">記録を消す</button></p>\n'
         + pager(back=f"{rel(depth - 1)}{lesson}.html", back_label="課のメニューへ戻る")
         + "</main>\n"
     )
@@ -520,20 +534,34 @@ def convert_exercise(src, out_path, ctx, depth):
 
     audio_btn = ""
     if audio_name:
-        audio_btn = (f'  <button type="button" class="btn primary" data-audio="{audio_name}">'
-                     f'▶ 音声を聞く</button>\n')
+        audio_btn = (
+            '<div class="listen">\n'
+            f'  <button type="button" class="btn primary" data-audio="{audio_name}">▶ 音声を聞く</button>\n'
+            f'  <button type="button" class="btn" data-audio="{audio_name}" data-rate="0.75">ゆっくり</button>\n'
+            "</div>\n")
 
-    pct = int(small / total * 100) if total else 0
+    # 入力のしかたが分かりにくい問題には、ひとこと添える
+    howto = ""
+    if "声調" in prompt:
+        howto = ('<p class="howto">数字で入力：<code>lao3</code>　'
+                 '記号でもOK：<code>lǎo</code></p>\n')
+    elif re.search(r"中国語に訳|漢字で", prompt):
+        howto = ('<p class="howto">中国語は<b>簡体字</b>で入力しましょう'
+                 '（例：<span lang="zh-Hans">爱・习・书</span>）</p>\n')
+
+    sec = f"{lesson}-l{big}"
     body = (
         '<main class="wrap narrow quiz">\n'
-        f'<div class="progress"><span>問題{big}</span>'
-        f'<span class="bar"><i style="width:{pct}%"></i></span>'
-        f'<span>{small} / {total}</span></div>\n'
+        f'<div class="progress"><span class="sec">問題{big}</span>'
+        f'<nav class="dots" data-sec="{sec}" data-total="{total}" data-cur="{small}" '
+        f'aria-label="問題{big}の一覧">{small} / {total}</nav>'
+        '<span class="dots-count"></span></div>\n'
         + ('<p class="prompt">'
            + (f'<img src="{rel(depth)}assets/images/{os.path.basename(img)}" alt="" loading="lazy">'
               if img else "")
            + f'<span>{esc(prompt)}</span></p>\n' if prompt else "")
-        + ('<p class="center">\n' + audio_btn + "</p>\n" if audio_btn else "")
+        + howto
+        + audio_btn
         + '<div class="card">\n' + frag + "\n</div>\n"
         '<div class="actions">\n'
         f'  <button type="button" class="btn primary" data-check '
@@ -570,12 +598,14 @@ def mark_inline_inputs(frag):
 def convert_done(src, out_path, ctx, depth):
     """宿題を終えたときのページ"""
     lesson, title = ctx["lesson"], ctx["title"]
+    secs = ",".join(f"{lesson}-l{b}:{n}" for b, n in sorted(ctx["counts"].items(), key=lambda x: int(x[0])))
     body = (
         '<main class="wrap narrow">\n'
         f'<p class="hero"><img src="{rel(depth)}assets/images/15.png" alt="よくできました" loading="lazy"></p>\n'
         '<h2 class="page-title">おつかれさまでした！</h2>\n'
+        f'<div class="summary" data-secs="{secs}"></div>\n'
         '<div class="card center">\n'
-        f'  <p>つづけて練習するときは <a href="{lesson}-l.html">問題一覧</a> へ戻ってください。</p>\n'
+        '  <p>まちがえた問題は、上のリストの「やり直す」から解き直せます。</p>\n'
         '  <p class="muted">宿題を提出するときは、パソコンで下のファイルをダウンロードし、CS から提出してください。</p>\n'
         f'  <p><a class="btn primary" href="../{lesson[:-1]}.xlsx" download>宿題ファイルをひらく</a></p>\n'
         "</div>\n"
@@ -632,14 +662,16 @@ def build_index(out_dir, lessons, max_lesson=14):
 
 def build_guide(out_dir):
     rows = [
-        ("🔊 音を聞く", "文や単語をタップすると、その部分の音声が流れます。"),
-        ("🇨🇳 表示をかえる", "「中国語／＋日本語／＋ピンイン／全部」で、見せる内容を切りかえられます。"
-                        "えらんだ設定は次のページでもそのまま使えます。"),
+        ("🔊 音を聞く", "文や単語をタップすると、その部分の音声が流れます。もう一度タップで聞き直せます。"),
+        ("👀 ピンイン・日本語訳", "上の「ピンイン」「日本語訳」ボタンで、出したり消したりできます。"
+                              "消しておけば、読み方や意味を思い出す練習になります。設定は次のページでも続きます。"),
         ("▶ 全文朗読", "本文や単語を上から順に続けて読み上げます。もう一度押すと止まります。"),
-        ("1× 速さ", "0.75倍 → 1倍 → 1.25倍 と切りかわります。聞きとりにくいときは 0.75倍で。"),
-        ("✅ 答え合わせ", "練習問題では、入力して「答え合わせ」を押すと〇か正解が出ます。"
-                    "Enter キーでも答え合わせできます。"),
-        ("⌨️ キーボード", "問題のページでは ← → キーで前の問題・次の問題へ移動できます。"),
+        ("1× 速さ", "0.75倍 → 1倍 → 1.25倍 と切りかわります。練習問題の「ゆっくり」は 0.75倍で 1 回流します。"),
+        ("✅ 答え合わせ", "入力して「答え合わせ」か Enter キー。ピンインは lao3 でも lǎo でも OK。"
+                       "中国語は簡体字で入力しましょう（日本語の漢字だと「おしい」と教えてくれます）。"),
+        ("⭕ 記録", "問題ページの上の丸い番号が ○（緑）× （赤）で色分けされ、タップでその問題へ移動できます。"
+                  "記録はその端末のブラウザにだけ残ります。"),
+        ("⌨️ キーボード", "パソコンでは ← → キーで前の問題・次の問題へ移動できます。正解したら Enter でそのまま次へ。"),
     ]
     cards = "\n".join(
         f'  <li><a class="tile" style="cursor:default" href="#" onclick="return false">'
@@ -732,28 +764,37 @@ def main(src_dir, out_dir):
         tan = numbered(rf"{key}-t1-\d+\.html", r"t1-(\d+)")
         sup = numbered(rf"{key}-t2-\d+\.html", r"t2-(\d+)")
 
+        # 学ぶ順番：本文 → 単語 → 補充単語 → 文法 → 練習問題
+        # 各まとまりの最後のページから、次のまとまりへ「次は 〇〇 →」で案内する
+        p_index = f"{key}-p.html"
+
         # ---- 本文
         for i, f in enumerate(hon):
+            last = i + 1 == len(hon)
             ctx = dict(ctx0, part=i + 1,
                        prev=hon[i - 1] if i else None,
-                       next=hon[i + 1] if i + 1 < len(hon) else None)
+                       next=(tan[0] if tan else None) if last else hon[i + 1],
+                       next_label="次は 単語 →" if last and tan else None)
             convert_honbun(read(os.path.join(kaiwa, f)), os.path.join(dst_kaiwa, f), ctx, 3)
 
-        # ---- 単語 / 補充単語
-        for group, label, sibling in ((tan, "単語", (sup, "補充単語")),
-                                      (sup, "補充単語", (tan, "単語"))):
-            for i, f in enumerate(group):
-                sib = None
-                if i == len(group) - 1 and sibling[0]:
-                    sib = (sibling[0][0], sibling[1])
-                ctx = dict(ctx0, label=f"{label}{i + 1}" if len(group) > 1 else label,
-                           prev=group[i - 1] if i else None,
-                           next=group[i + 1] if i + 1 < len(group) else None,
-                           sibling=sib)
-                convert_tango(read(os.path.join(kaiwa, f)), os.path.join(dst_kaiwa, f), ctx, 3)
+        # ---- 単語 → 補充単語 を 1 本の流れにする
+        chain = [(f, f"単語{i + 1}" if len(tan) > 1 else "単語") for i, f in enumerate(tan)]
+        chain += [(f, f"補充単語{i + 1}" if len(sup) > 1 else "補充単語") for i, f in enumerate(sup)]
+        for i, (f, label) in enumerate(chain):
+            last = i + 1 == len(chain)
+            nxt, nlabel = None, None
+            if last:
+                if p_index in files:
+                    nxt, nlabel = p_index, "次は 文法 →"
+            else:
+                nxt = chain[i + 1][0]
+                if chain[i + 1][1].startswith("補充") and not label.startswith("補充"):
+                    nlabel = "補充単語 →"
+            ctx = dict(ctx0, label=label, prev=chain[i - 1][0] if i else None,
+                       next=nxt, next_label=nlabel)
+            convert_tango(read(os.path.join(kaiwa, f)), os.path.join(dst_kaiwa, f), ctx, 3)
 
         # ---- 文法ポイント
-        p_index = f"{key}-p.html"
         if p_index in files:
             convert_point_index(read(os.path.join(kaiwa, p_index)),
                                 os.path.join(dst_kaiwa, p_index), ctx0, 3)
@@ -774,7 +815,8 @@ def main(src_dir, out_dir):
                                    dict(ctx0, counts=counts), 3)
         if f"{key}-l-o.html" in files:
             convert_done(read(os.path.join(kaiwa, f"{key}-l-o.html")),
-                         os.path.join(dst_kaiwa, f"{key}-l-o.html"), ctx0, 3)
+                         os.path.join(dst_kaiwa, f"{key}-l-o.html"),
+                         dict(ctx0, counts=counts), 3)
         for f in files:
             m = re.fullmatch(rf"{key}-l(\d+)-(\d+)\.html", f)
             if not m:

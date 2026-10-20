@@ -69,6 +69,7 @@ img { max-width: 100%; height: auto; }
   position: sticky; top: 0; z-index: 20;
   display: flex; align-items: center; gap: 12px;
   padding: 10px 16px;
+  background: var(--card);
   background: color-mix(in srgb, var(--card) 88%, transparent);
   backdrop-filter: blur(10px);
   border-bottom: 1px solid var(--line);
@@ -124,19 +125,22 @@ img { max-width: 100%; height: auto; }
 /* ---------- ツールバー（表示選択・朗読） ---------- */
 .toolbar {
   position: sticky; top: 57px; z-index: 15;
-  display: flex; flex-wrap: wrap; gap: 10px; align-items: center;
-  padding: 10px; margin-bottom: 16px;
+  display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+  padding: 8px; margin-bottom: 14px;
+  background: var(--card);
   background: color-mix(in srgb, var(--card) 92%, transparent);
   backdrop-filter: blur(10px);
   border: 1px solid var(--line); border-radius: var(--radius);
 }
-.seg { display: flex; background: var(--bg); border: 1px solid var(--line); border-radius: 999px; padding: 3px; }
-.seg button {
-  min-height: 36px; padding: 0 12px; border: 0; border-radius: 999px;
-  background: transparent; color: var(--ink-soft);
+.chips { display: flex; gap: 6px; }
+.chips button {
+  min-height: 38px; padding: 0 12px; border-radius: 999px;
+  border: 1px solid var(--line); background: var(--card); color: var(--ink-soft);
   font: inherit; font-size: .88rem; cursor: pointer; white-space: nowrap;
 }
-.seg button[aria-pressed="true"] { background: var(--accent); color: #fff; font-weight: 600; }
+.chips button::before { content: "○ "; }
+.chips button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+.chips button[aria-pressed="true"]::before { content: "✓ "; }
 .toolbar .spacer { flex: 1 1 auto; }
 
 /* ---------- 本文（会話） ---------- */
@@ -144,7 +148,8 @@ img { max-width: 100%; height: auto; }
 .line {
   position: relative;
   display: grid; grid-template-columns: auto 1fr; gap: 4px 12px;
-  padding: 14px 14px 14px 12px; margin-bottom: 10px;
+  padding: 14px 34px 14px 12px; margin-bottom: 10px;
+  -webkit-tap-highlight-color: transparent;
   background: var(--card); border: 1px solid var(--line);
   border-left: 4px solid transparent;
   border-radius: var(--radius); cursor: pointer;
@@ -181,6 +186,7 @@ img { max-width: 100%; height: auto; }
   align-items: baseline;
   padding: 12px 36px 12px 14px;
   margin-bottom: 8px;
+  -webkit-tap-highlight-color: transparent;
   background: var(--card); border: 1px solid var(--line);
   border-left: 4px solid transparent;
   border-radius: var(--radius); cursor: pointer;
@@ -303,24 +309,39 @@ body[data-mode="py"] [data-lang="jp"] { display: none !important; }
   overflow-wrap: anywhere;
 }
 .result.ok { color: var(--ok); }
-.result.ng { color: var(--ink); font-weight: 600; font-size: 1.05rem; }
-.result.ng::before { content: "正解: "; color: var(--ink-soft); font-weight: 400; font-size: .85rem; }
+.result.ng { color: var(--ink-soft); font-weight: 500; font-size: 1rem; }
+.result.ng strong { display: block; color: var(--ink); font-size: 1.15rem; font-family: var(--zh); margin-top: 2px; }
+.result.almost { color: #b7791f; font-size: 1.05rem; }
+.result.almost small { display: block; color: var(--ink); font-size: 1.1rem; font-family: var(--zh); margin-top: 4px; }
+.quiz input.almost { border-color: #d69e2e; }
 
 .actions { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-top: 8px; }
 
 /* 問題の進み具合 */
-.progress { display: flex; align-items: center; gap: 10px; justify-content: center; margin-bottom: 14px; color: var(--ink-soft); font-size: .9rem; }
-.progress .bar { flex: 1 1 120px; max-width: 220px; height: 6px; border-radius: 999px; background: var(--line); overflow: hidden; }
-.progress .bar i { display: block; height: 100%; background: var(--accent); }
+.progress { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; justify-content: center; margin-bottom: 14px; color: var(--ink-soft); font-size: .88rem; }
+.progress .sec { font-weight: 700; color: var(--ink); }
+.dots { display: flex; flex-wrap: wrap; gap: 5px; justify-content: center; }
+.dots a {
+  display: flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px; border-radius: 50%;
+  border: 1.5px solid var(--line); background: var(--card);
+  color: var(--ink-soft); font-size: .78rem; text-decoration: none;
+}
+.dots a.ok { background: #e6f6ee; border-color: #1b9e5f; color: #146c43; }
+.dots a.ng { background: #fdecec; border-color: #d6453f; color: #a12b26; }
+.dots a.cur { outline: 2.5px solid var(--accent); outline-offset: 1px; font-weight: 700; color: var(--ink); }
+.dots-count { width: 100%; text-align: center; font-size: .8rem; }
 
 /* ---------- 前へ / 次へ ---------- */
 .pager {
-  display: flex; gap: 10px; align-items: center; justify-content: space-between;
+  display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between;
   margin-top: 20px;
 }
-.pager .btn { flex: 1 1 0; min-width: 0; }
-.pager .btn span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.pager .ghost { visibility: hidden; }
+.pager .btn { flex: 1 1 auto; min-width: 0; padding: 0 12px; }
+.pager .btn span { white-space: nowrap; }
+.pager .ghost { display: none; }
+.pager a.go { animation: nudge 1.2s ease-in-out 2; box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 25%, transparent); }
+@keyframes nudge { 0%,100% { transform: translateX(0); } 50% { transform: translateX(4px); } }
 
 /* ---------- その他 ---------- */
 .center { text-align: center; }
@@ -330,11 +351,18 @@ body[data-mode="py"] [data-lang="jp"] { display: none !important; }
 .hint {
   display: flex; gap: 10px; align-items: flex-start;
   padding: 12px 14px; margin: 0 0 16px;
+  background: var(--card);
   background: color-mix(in srgb, var(--accent) 7%, var(--card));
   border: 1px solid color-mix(in srgb, var(--accent) 25%, var(--line));
   border-radius: var(--radius); font-size: .92rem; line-height: 1.65;
 }
 .hint b { color: var(--accent-dk); }
+.hint .x {
+  margin-left: auto; flex: 0 0 auto;
+  width: 30px; height: 30px; border: 0; border-radius: 50%;
+  background: transparent; color: var(--ink-soft); font-size: 1.1rem; cursor: pointer;
+}
+.hint .x:hover { background: var(--bg); }
 
 /* 画面が小さいときの調整 */
 @media (max-width: 600px) {
@@ -344,12 +372,18 @@ body[data-mode="py"] [data-lang="jp"] { display: none !important; }
   .topbar .crumb { display: none; }
   .l-ch { font-size: 1.2rem; }
   .toolbar { top: 53px; }
-  .seg button { padding: 0 9px; font-size: .8rem; }
+  .toolbar { gap: 6px; padding: 6px; }
+  .toolbar .spacer { display: none; }
+  .chips { gap: 4px; }
+  .chips button { padding: 0 8px; font-size: .82rem; min-height: 40px; }
+  #playAll { margin-left: auto; padding: 0 10px; font-size: .88rem; min-height: 40px; }
+  #rateBtn { padding: 0 8px; min-width: 44px; min-height: 40px; }
+  .pager .btn { font-size: .9rem; padding: 0 10px; }
 }
 
 /* 印刷（紙の宿題用） */
 @media print {
-  .topbar, .toolbar, .pager, .actions, .progress { display: none !important; }
+  .topbar, .toolbar, .pager, .actions, .progress, .hint { display: none !important; }
   body { background: #fff; color: #000; }
   .card, .line, .word { border: 1px solid #999; break-inside: avoid; }
   [data-lang] { display: revert !important; }
@@ -364,4 +398,34 @@ body[data-mode="py"] [data-lang="jp"] { display: none !important; }
 .tile.disabled {
   opacity: .5; cursor: default; pointer-events: none;
   background: transparent; border-style: dashed;
+}
+
+/* 再生中のボタン */
+.btn.playing { background: var(--accent-dk); border-color: var(--accent-dk); color: #fff; }
+.btn.playing::after { content: " ♪"; }
+
+/* 音声ボタンの並び */
+.listen { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin: 0 0 16px; }
+
+/* 問題の入力のしかた */
+.howto { margin: -6px 0 14px; text-align: center; color: var(--ink-soft); font-size: .88rem; }
+.howto code { font-family: var(--pyf); background: var(--card); border: 1px solid var(--line); border-radius: 6px; padding: 0 6px; color: var(--ink); }
+
+/* 成績 */
+.score { margin-left: auto; padding: 2px 10px; border-radius: 999px; font-size: .82rem; font-weight: 600; background: var(--bg); color: var(--ink-soft); white-space: nowrap; }
+.score.part { background: #fff4d6; color: #8a5a00; }
+.score.full { background: #e6f6ee; color: #146c43; }
+.menu .score + .arrow { margin-left: 6px; }
+.menu a.done .arrow { color: #1b9e5f; font-weight: 700; }
+.summary .total { text-align: center; font-size: 1.3rem; font-weight: 700; margin: 4px 0 14px; }
+.reset { background: none; border: 0; color: var(--ink-soft); font: inherit; font-size: .82rem; text-decoration: underline; cursor: pointer; }
+
+/* 次の学習へ */
+.pager a.onward { flex: 1 1 100%; }
+
+/* お知らせ */
+.toast {
+  position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: 999;
+  background: #16303f; color: #fff; padding: 10px 18px; border-radius: 999px;
+  font-size: 14px; box-shadow: 0 6px 20px rgba(0,0,0,.25);
 }
